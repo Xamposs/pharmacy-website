@@ -9,12 +9,12 @@ export function CategoryTiles() {
         <Link
           key={c.slug}
           href={`/category/${c.slug}`}
-          className="group rounded-xl bg-neutral-50 p-4 ring-1 ring-neutral-200 transition-shadow hover:shadow-md"
+          className="group rounded-xl bg-surface p-4 shadow-card ring-1 ring-border transition-shadow hover:shadow-pop"
         >
-          <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl font-extrabold text-sky-700 ring-1 ring-neutral-200">
+          <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-xl font-extrabold text-primary ring-1 ring-border">
             {c.name.charAt(0)}
           </span>
-          <span className="mt-2 block text-sm font-bold text-neutral-900 group-hover:underline">
+          <span className="mt-2 block text-sm font-bold text-ink group-hover:text-primary group-hover:underline">
             {c.name}
           </span>
         </Link>

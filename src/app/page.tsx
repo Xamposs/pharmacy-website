@@ -1,39 +1,42 @@
 import { BrandStrip } from "@/components/home/BrandStrip";
 import { CategoryTiles } from "@/components/home/CategoryTiles";
-import { HeroSection } from "@/components/home/HeroSection";
-import { ProductCarousel } from "@/components/home/ProductCarousel";
+import { HeroCarousel } from "@/components/home/HeroCarousel";
+import { ProductSlider } from "@/components/home/ProductSlider";
+import { PromoBlocks } from "@/components/home/PromoBlocks";
 import { Newsletter } from "@/components/layout/Newsletter";
 import { TrustBar } from "@/components/layout/TrustBar";
 import { SectionHeading } from "@/components/shared/SectionHeading";
 import { getNew, getOffers, getPopular } from "@/lib/catalog";
 
 export default function HomePage() {
-  const offers = getOffers(4);
+  const offers = getOffers(8);
   const popular = getPopular(8);
-  const fresh = getNew(4);
+  const fresh = getNew(8);
 
   return (
     <div className="flex flex-col gap-10">
-      <HeroSection />
+      <HeroCarousel />
 
       <section aria-label="Κατηγορίες">
-        <SectionHeading title="Κατηγορίες" />
+        <SectionHeading title="Κατηγορίες" actionLabel="Όλες οι κατηγορίες" actionHref="/categories" />
         <CategoryTiles />
       </section>
 
-      <ProductCarousel
+      <ProductSlider
         id="prosfores"
         title="Προσφορές"
         products={offers}
         actionLabel="Δείτε τα όλα"
-        actionHref="/search?q="
+        actionHref="/offers"
       />
 
       <BrandStrip />
 
-      <ProductCarousel title="Δημοφιλή προϊόντα" products={popular} />
+      <ProductSlider title="Δημοφιλή προϊόντα" products={popular} />
 
-      {fresh.length > 0 ? <ProductCarousel title="Νέα προϊόντα" products={fresh} /> : null}
+      <PromoBlocks />
+
+      {fresh.length > 0 ? <ProductSlider title="Νέες αφίξεις" products={fresh} /> : null}
 
       <TrustBar />
       <Newsletter />

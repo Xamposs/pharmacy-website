@@ -21,20 +21,21 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const subcategories = getSubcategories(category.slug);
   const products = getProductsByCategory(category.slug);
 
+  const parent = category.parentSlug ? getCategory(category.parentSlug) : undefined;
+
   return (
     <div className="flex flex-col gap-4">
       <Breadcrumbs
         items={[
           { label: "Αρχική", href: "/" },
-          ...(category.parentSlug
-            ? [{ label: "Κατηγορίες", href: "/#prosfores" }]
-            : []),
+          { label: "Κατηγορίες", href: "/categories" },
+          ...(parent ? [{ label: parent.name, href: `/category/${parent.slug}` }] : []),
           { label: category.name },
         ]}
       />
       <div>
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{category.name}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-neutral-600">{category.description}</p>
+        <p className="mt-1 max-w-2xl text-sm text-muted">{category.description}</p>
       </div>
       <CategoryView products={products} subcategories={subcategories} />
     </div>

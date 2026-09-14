@@ -7,7 +7,7 @@ export function Newsletter() {
   const [done, setDone] = useState(false);
 
   return (
-    <section aria-labelledby="newsletter-title" className="rounded-2xl bg-neutral-950 px-6 py-8 text-white">
+    <section aria-labelledby="newsletter-title" className="rounded-2xl bg-primary-ink px-6 py-8 text-white">
       <h2 id="newsletter-title" className="text-lg font-extrabold">
         Εγγραφείτε στο newsletter μας
       </h2>
@@ -15,7 +15,7 @@ export function Newsletter() {
         Νέα προϊόντα και προσφορές (demo — δεν αποστέλλεται τίποτα).
       </p>
       {done ? (
-        <p role="status" className="mt-4 rounded-lg bg-emerald-500/20 px-3 py-2 text-sm font-semibold text-emerald-300">
+        <p role="status" className="mt-4 rounded-lg bg-success-soft px-3 py-2 text-sm font-semibold text-success">
           Ευχαριστούμε για την εγγραφή (demo)!
         </p>
       ) : (
@@ -36,9 +36,9 @@ export function Newsletter() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Το email σας"
-            className="w-full rounded-lg bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            className="h-11 w-full rounded-lg bg-white px-3 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-accent"
           />
-          <button type="submit" className="shrink-0 rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold hover:bg-sky-500">
+          <button type="submit" className="h-11 shrink-0 rounded-lg bg-primary px-4 text-sm font-bold text-white hover:bg-primary-hover">
             Εγγραφή
           </button>
         </form>

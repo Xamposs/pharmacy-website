@@ -20,7 +20,7 @@ export function ProductImage({ brandName, productName, size = "card" }: ProductI
     <div
       role="img"
       aria-label={`Εικόνα προϊόντος: ${productName}`}
-      className={`flex w-full ${dims} items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 via-white to-emerald-50 font-extrabold text-sky-900/30 ring-1 ring-inset ring-neutral-200`}
+      className={`flex w-full ${dims} items-center justify-center rounded-xl bg-gradient-to-br from-primary-soft via-surface to-accent-soft font-extrabold text-primary/25 ring-1 ring-inset ring-border`}
     >
       <span aria-hidden="true">{initial}</span>
     </div>

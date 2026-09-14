@@ -23,7 +23,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
       <div className="max-w-xl">
         <SearchBar initial={q} />
       </div>
-      <p aria-live="polite" className="text-sm text-neutral-600">
+      <p aria-live="polite" className="text-sm text-muted">
         {q && results.length === 0
           ? "Δεν βρέθηκαν προϊόντα (demo κατάλογος)."
           : `${results.length === 1 ? "1 προϊόν" : `${results.length} προϊόντα`} (demo κατάλογος)`}

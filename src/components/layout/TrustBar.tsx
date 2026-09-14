@@ -9,9 +9,9 @@ export function TrustBar() {
   return (
     <section aria-label="Πλεονεκτήματα καταστήματος" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {benefits.map((b) => (
-        <div key={b.title} className="rounded-xl bg-neutral-50 p-4 text-center ring-1 ring-neutral-200">
-          <p className="text-sm font-extrabold text-neutral-900">{b.title}</p>
-          <p className="mt-0.5 text-xs text-neutral-500">{b.text}</p>
+        <div key={b.title} className="rounded-xl bg-surface p-4 text-center shadow-card ring-1 ring-border">
+          <p className="text-sm font-extrabold text-ink">{b.title}</p>
+          <p className="mt-0.5 text-xs text-muted">{b.text}</p>
         </div>
       ))}
     </section>
