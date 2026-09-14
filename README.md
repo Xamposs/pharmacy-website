@@ -1,12 +1,11 @@
 # Pharmacy Website
 
-Self-hosted Greek pharmacy e-commerce platform (in preparation).
+Self-hosted Greek pharmacy e-commerce platform.
 
-> **Current phase: Phase 0 — Reference Analysis & Project Foundation.**
-> No storefront, product, cart, checkout, auth, database, ERP, payment,
-> courier, Skroutz, AI, or admin code exists yet — and none is created in
-> this phase. Phase 0 only establishes project structure and read-only
-> tooling for analysing the public structure of a reference site.
+> **Phase 0 — complete.** Reference analysis foundation + read-only tooling.
+> **Phase 1 — complete.** Targeted reference analysis (150 pages, 127 product
+> pages) + storefront foundation with demo catalog. No backend commerce yet:
+> no auth, checkout, payments, database, ERP, admin, or AI.
 
 ## What this repository will eventually contain
 
@@ -33,23 +32,29 @@ reference. Captured third-party material is **reference-only**, stays
 production source code. The production site will be a clean implementation
 built from scratch. Full policy: [`docs/reference/REFERENCE_POLICY.md`](docs/reference/REFERENCE_POLICY.md).
 
-## Repository layout (Phase 0)
+## Repository layout
 
 ```text
+src/                   # production storefront (Next.js App Router, clean implementation)
+  app/                 # routes: /, /category/[slug], /product/[slug], /brands, /brands/[slug], /search
+  components/          # layout/, navigation/, commerce/, home/, shared/
+  data/                # typed DEMO catalog (invented products; no real vendor data)
+  lib/                 # catalog queries + isolated demo cart store
+  types/               # catalog types
 docs/
-  architecture/        # system sketches (future phases)
+  architecture/        # STOREFRONT_ARCHITECTURE.md + future system notes
   decisions/           # Architecture Decision Records (ADRs)
-  reference/           # reference-site policy & analysis notes (tracked)
+  reference/           # reference-site policy + WECARE_* analysis docs (tracked)
 reference/
   wecare/
     inventory/         # sanitized, tracked page/link/type metadata (JSON)
     reports/           # human-readable tracked reports (Markdown)
 reference-private/     # RAW captures: HTML, screenshots, runtime metadata (GIT-IGNORED)
 scripts/
-  reference/           # Phase 0 crawler + reporter source (TypeScript + Playwright)
+  reference/           # crawler + reporter + shots + analyze (TypeScript + Playwright)
 ```
 
-## Developer setup (Phase 0 reference tools)
+## Developer setup
 
 Prerequisites:
 
@@ -64,25 +69,30 @@ cmd /c npm install
 cmd /c npx playwright install chromium
 ```
 
-Run the reference smoke test (max 25 pages, polite read-only crawl):
+Storefront:
 
 ```cmd
-cmd /c npm run reference:crawl -- --max-pages=25
-cmd /c npm run reference:report
+cmd /c npm run dev        :: local development
+cmd /c npm run build      :: production build
+cmd /c npm run start      :: serve production build
+cmd /c npm run typecheck  :: TypeScript check (app + tooling)
 ```
 
-Other useful commands:
+Reference analysis (read-only, polite; raw captures stay in git-ignored `reference-private/`):
 
 ```cmd
-cmd /c npm run typecheck
+cmd /c npm run reference:crawl -- --max-pages=150
+cmd /c npm run reference:report
+cmd /c npm run reference:shots -- --url=<url> --label=<label>
+cmd /c npm run reference:analyze
 ```
 
 Configuration via environment variables (see [`.env.example`](.env.example)):
 
 | Variable | Default | Description |
 |---|---|---|
-| `REFERENCE_BASE_URL` | `https://www.wecare.gr` | Crawl origin (do not change in Phase 0) |
-| `REFERENCE_MAX_PAGES` | `25` | Max pages to visit |
+| `REFERENCE_BASE_URL` | `https://www.wecare.gr` | Crawl origin (reference only) |
+| `REFERENCE_MAX_PAGES` | `25` | Max pages to visit (Phase 1 deep run used `--max-pages=150`) |
 | `REFERENCE_DELAY_MS` | `1200` | Base delay between navigations (ms) |
 | `REFERENCE_TIMEOUT_MS` | `30000` | Per-navigation timeout (ms) |
 

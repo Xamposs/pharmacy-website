@@ -4,7 +4,8 @@
  * Best-effort only: URL patterns + title/H1 hints. Every result carries
  * a human-readable reason so downstream reports never overstate confidence.
  */
-import type { PageType } from "./types.js";
+import type { DomSignals, PageType } from "./types.js";
+import { isProductLikelyUrl } from "./prioritize.js";
 
 export interface Classification {
   pageType: PageType;
@@ -15,6 +16,7 @@ export function classifyPage(args: {
   normalizedUrl: string;
   title: string | null;
   h1: string | null;
+  dom?: DomSignals | null;
 }): Classification {
   let path = "";
   try {
@@ -52,7 +54,19 @@ export function classifyPage(args: {
     // fall through to other heuristics
   }
 
-  // Product pages commonly contain /product, /p-, SKU-like tails, or .html product slugs.
+  // Product pages: strongest evidence is DOM commerce structure observed
+  // read-only (visible € prices + an add-to-cart control that is never clicked).
+  // URL shape (`/vendors/<brand>/<slug-with-size>.htm`) is supporting evidence.
+  const dom = args.dom ?? null;
+  const domProduct = !!dom && dom.priceHits > 0 && dom.hasAddToCart;
+  if (domProduct) {
+    return { pageType: "product", reason: "dom-price-plus-addtocart-observed" };
+  }
+  // URL-shape product evidence (from Phase 0 inventory mining):
+  // `/vendors/<brand>/<product-slug-with-size>.htm`, plus generic fallbacks.
+  if (isProductLikelyUrl(args.normalizedUrl)) {
+    return { pageType: "product", reason: "vendors-slug-with-size-token" };
+  }
   if (
     /\/product[\/-]/i.test(path) ||
     /\/proion/i.test(path) ||
@@ -120,7 +134,15 @@ export function classifyPage(args: {
     }
   }
 
-  // Blog index vs article.
+  // Blog index vs article (covers /blog and /thecareblog pagination + posts).
+  if (/\/thecareblog(\/|$)/i.test(path)) {
+    const segments = path.split("/").filter(Boolean);
+    const leaf = segments[segments.length - 1] ?? "";
+    if (/^all$/i.test(leaf) || /^\d+\.htm$/i.test(leaf)) {
+      return { pageType: "blog", reason: "thecareblog-index-or-pagination" };
+    }
+    return { pageType: "article", reason: "thecareblog-post-path" };
+  }
   if (/\/blog(\/|$)/i.test(path)) {
     const segments = path.split("/").filter(Boolean);
     if (segments.length <= 1 || /\/blog\/?$/i.test(path)) {

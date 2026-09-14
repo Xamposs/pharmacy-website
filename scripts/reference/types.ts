@@ -1,9 +1,21 @@
 /**
- * Shared types for the Phase 0 reference crawler.
+ * Shared types for the reference crawler (Phase 0 foundation, Phase 1 extensions).
  *
  * Read-only inspection of public pages on wecare.gr. No form submits,
  * no cart/checkout/account actions, no state-changing requests.
  */
+
+/** Read-only DOM commerce signals observed on a visited page (never interacted with). */
+export interface DomSignals {
+  /** Count of visible €-price-like strings (e.g. "12,90 €"). */
+  priceHits: number;
+  /** A visible add-to-cart control exists (observed only, never clicked). */
+  hasAddToCart: boolean;
+  /** A product image gallery region exists. */
+  hasGallery: boolean;
+  /** Breadcrumb items observed (text only, capped). */
+  breadcrumbs: string[];
+}
 
 export type PageType =
   | "homepage"
@@ -55,6 +67,11 @@ export interface PageRecord {
   htmlPath: string | null;
   screenshotDesktopPath: string | null;
   screenshotMobilePath: string | null;
+  /** Phase 1: queue priority score/reason at visit time (lower = earlier). */
+  priorityScore: number | null;
+  priorityReason: string | null;
+  /** Phase 1: read-only DOM commerce signals (evidence for product classification). */
+  domSignals: DomSignals | null;
 }
 
 export interface CrawlMeta {

@@ -57,6 +57,10 @@ function main(): void {
     lang: p.lang,
     pageType: p.pageType,
     pageTypeReason: p.pageTypeReason,
+    priorityScore: p.priorityScore ?? null,
+    breadcrumbs: p.domSignals?.breadcrumbs ?? [],
+    priceHits: p.domSignals?.priceHits ?? null,
+    hasAddToCart: p.domSignals?.hasAddToCart ?? null,
     internalLinksCount: p.internalLinksCount,
     timestamp: p.timestamp,
   }));
@@ -74,12 +78,13 @@ function main(): void {
     note: "heuristic classification; see pageTypeReason per page in pages.json",
     counts: Object.fromEntries(Object.entries(byType).map(([t, urls]) => [t, urls.length])),
     urlsByType: Object.fromEntries(
-      Object.entries(byType).map(([t, urls]) => [t, [...urls].sort().slice(0, 50)]),
+      Object.entries(byType).map(([t, urls]) => [t, [...urls].sort().slice(0, t === "product" ? 150 : 50)]),
     ),
   };
   fs.writeFileSync(path.join(inventoryDir, "page-types.json"), JSON.stringify(pageTypes, null, 2) + "\n", "utf8");
 
   // --- internal-links.json: deduped out-edges, capped ---
+  const EDGE_CAP = 5000;
   const rawEdges: Array<{ from: string; to: string }> = [];
   for (const p of sorted) {
     if (!p.success) continue;
@@ -88,14 +93,14 @@ function main(): void {
       if (to === p.normalizedUrl || seen.has(to)) continue;
       seen.add(to);
       rawEdges.push({ from: p.normalizedUrl, to });
-      if (rawEdges.length >= 2000) break;
+      if (rawEdges.length >= EDGE_CAP) break;
     }
-    if (rawEdges.length >= 2000) break;
+    if (rawEdges.length >= EDGE_CAP) break;
   }
   rawEdges.sort((a, b) => (a.from === b.from ? (a.to < b.to ? -1 : 1) : a.from < b.from ? -1 : 1));
   const internalLinks = {
     generatedAt: new Date().toISOString(),
-    note: "capped sample of same-origin out-edges (max 2000); per-page samples capped at 100 links",
+    note: "capped sample of same-origin out-edges (max 5000); per-page samples capped at 100 links",
     edgeCount: rawEdges.length,
     edges: rawEdges,
   };
@@ -123,9 +128,9 @@ function main(): void {
     }
   }))].sort();
 
-  const md = `# wecare.gr smoke test — ${new Date().toISOString().slice(0, 10)}
+  const md = `# wecare.gr reference crawl — ${new Date().toISOString().slice(0, 10)}
 
-> Auto-generated from the polite read-only crawl (max ${meta?.maxPages ?? "?"} pages).
+> Auto-generated from the polite read-only crawl (max ${meta?.maxPages ?? "?"} pages, prioritized queue).
 > Source: \`reference/wecare/inventory/*.json\` (sanitized). Raw HTML/screenshots stay local-only
 > under \`reference-private/\` per \`docs/reference/REFERENCE_POLICY.md\`.
 
@@ -152,6 +157,14 @@ Classification is best-effort (URL + title/H1 patterns); see \`pageTypeReason\` 
 - Brand-like: ${repFor(["brand"])}
 - Informational/content-like: ${repFor(["informational", "article", "blog"])}
 
+## Product pages observed
+
+${(() => {
+    const products = success.filter((p) => p.pageType === "product");
+    if (products.length === 0) return "- none observed within the crawl cap.";
+    return products.map((p) => `- ${p.normalizedUrl} ("${p.title ?? "untitled"}")`).join("\n");
+  })()}
+
 ## Crawl configuration
 
 - robots.txt available: **${meta ? String(meta.robotsAvailable) : "unknown"}**${meta?.robotsUrl ? ` (${meta.robotsUrl})` : ""}
@@ -164,7 +177,7 @@ ${sections.length > 0 ? sections.map((s) => `- \`${s}\``).join("\n") : "- none o
 
 ## Navigation patterns observed
 
-- Internal discovery via same-origin anchor hrefs (BFS from homepage, deduped + canonicalized).
+- Internal discovery via same-origin anchor hrefs (prioritized queue: product-likely first, deduped + canonicalized).
 - Tracking params stripped; fragments stripped; sensitive paths (account/login/checkout/cart/admin/api/…) never queued.
 - Non-GET requests aborted at the browser-context level as a safety net.
 
@@ -175,7 +188,7 @@ ${failed.length > 0 ? failed.map((p) => `- FAILED ${p.normalizedUrl} — ${p.err
 
 ## Limitations
 
-- Capped at ${meta?.maxPages ?? "?"} pages: this is a smoke test, not a full sitemap.
+- Capped at ${meta?.maxPages ?? "?"} pages: this is a targeted sample, not a full sitemap.
 - JavaScript-heavy or bot-protected pages may be under-observed; blocks are recorded, never evaded.
 - Page-type labels are heuristic; verify against \`pages.json\` before using in later phases.
 `;

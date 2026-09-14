@@ -6,6 +6,8 @@ node_modules/
 dist/
 build/
 out/
+next-env.d.ts
+tsconfig.tsbuildinfo
 
 # Coverage
 coverage/

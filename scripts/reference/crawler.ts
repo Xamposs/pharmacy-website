@@ -1,5 +1,5 @@
 /**
- * Phase 0 read-only reference crawler for https://www.wecare.gr.
+ * Reference crawler for https://www.wecare.gr (Phase 0 foundation + Phase 1 prioritization).
  *
  * Safety contract (see docs/reference/REFERENCE_POLICY.md):
  * - GET / browser navigation only; never submits forms.
@@ -7,6 +7,9 @@
  * - Same-origin only; skips sensitive paths; respects robots.txt disallows.
  * - Polite delay (~1200 ms + jitter) between navigations; capped page count.
  * - No stealth plugins, no CAPTCHA/anti-bot bypass. Blocks are recorded, never evaded.
+ *
+ * Phase 1: scored priority queue (product-likely URLs first, from inventory
+ * evidence) + seeding from the previously generated tracked link inventory.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -22,7 +25,8 @@ import {
   probeSitemaps,
   defaultSitemapCandidates,
 } from "./urls.js";
-import type { CrawlMeta, PageRecord } from "./types.js";
+import { PriorityQueue, scoreUrl } from "./prioritize.js";
+import type { CrawlMeta, DomSignals, PageRecord } from "./types.js";
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -82,21 +86,61 @@ const EXTRACT_JS = `(() => {
   const meta = document.querySelector('meta[name="description"]');
   const canonical = document.querySelector('link[rel="canonical"]');
   const anchors = Array.from(document.querySelectorAll("a[href]"));
-  const hrefs = [];
+  const links = [];
   for (const a of anchors) {
     const href = a.getAttribute("href");
-    if (href) hrefs.push(href);
-    if (hrefs.length >= 2000) break;
+    if (!href) continue;
+    const t = (a.innerText || a.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 120);
+    links.push({ href, text: t });
+    if (links.length >= 2000) break;
   }
+  // --- read-only DOM commerce signals (observed only, never interacted with) ---
+  let priceHits = 0;
+  try {
+    const bodyText = (document.body ? document.body.innerText : "") || "";
+    const m = bodyText.match(/\\d[\\d.,\\s]*\\s?€|€\\s?\\d/g);
+    priceHits = m ? Math.min(m.length, 99) : 0;
+  } catch (e) { priceHits = 0; }
+  let hasAddToCart = false;
+  try {
+    const fold = (s) => String(s || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+    const ctrls = Array.from(document.querySelectorAll("button, a, input[type=submit], input[type=button]"));
+    for (const c of ctrls) {
+      const label = fold(c.innerText || c.value || c.getAttribute("aria-label") || "");
+      if (/καλαθ|αγορ|προσθηκ|kalath|prosthk|agor|wishlist|agap|favor|add to cart|add to bag|buy now/.test(label)) { hasAddToCart = true; break; }
+    }
+  } catch (e) { hasAddToCart = false; }
+  let hasGallery = false;
+  try {
+    hasGallery = !!document.querySelector('[class*="gallery" i], [id*="gallery" i], [class*="product-image" i], [class*="product_gallery" i]');
+    if (!hasGallery && document.querySelector("main")) {
+      hasGallery = document.querySelectorAll("main img").length >= 4;
+    }
+  } catch (e) { hasGallery = false; }
+  const breadcrumbs = [];
+  try {
+    const crumbs = document.querySelectorAll('[class*="breadcrumb" i] a, [class*="breadcrumb" i] li');
+    for (const c of crumbs) {
+      const t = String(c.innerText || c.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 80);
+      if (t) breadcrumbs.push(t);
+      if (breadcrumbs.length >= 10) break;
+    }
+  } catch (e) {}
   return {
     title: document.title ? document.title.trim().slice(0, 500) : null,
     metaDescription: meta && meta.getAttribute("content") ? meta.getAttribute("content").trim().slice(0, 1000) : null,
     canonicalUrl: canonical && canonical.getAttribute("href") ? canonical.getAttribute("href").trim() : null,
     h1: pick("h1"),
     lang: document.documentElement.getAttribute("lang"),
-    hrefs,
+    links,
+    signals: { priceHits, hasAddToCart, hasGallery, breadcrumbs },
   };
 })()`;
+
+interface ExtractedLink {
+  href: string;
+  text: string;
+}
 
 async function extractPageData(page: Page): Promise<{
   title: string | null;
@@ -104,7 +148,8 @@ async function extractPageData(page: Page): Promise<{
   canonicalUrl: string | null;
   h1: string | null;
   lang: string | null;
-  hrefs: string[];
+  links: ExtractedLink[];
+  signals: DomSignals;
 }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (await page.evaluate(EXTRACT_JS)) as any;
@@ -132,7 +177,7 @@ async function main(): Promise<void> {
     console.log(line);
   };
 
-  log(`Phase 0 reference crawl starting: ${config.baseUrl} (maxPages=${config.maxPages}, delayMs=${config.delayMs})`);
+  log(`reference crawl starting: ${config.baseUrl} (maxPages=${config.maxPages}, delayMs=${config.delayMs}, prioritized queue)`);
 
   // --- robots.txt + sitemap discovery (best effort) ---
   const robots = await fetchRobots(config.baseOrigin, config.timeoutMs);
@@ -168,18 +213,66 @@ async function main(): Promise<void> {
   const page = await context.newPage();
 
   const seedNormalized = normalizeUrl(config.baseUrl, config.baseOrigin);
-  const queue: string[] = seedNormalized ? [seedNormalized] : [];
-  const enqueued = new Set(queue);
+  const pq = new PriorityQueue();
+  const enqueued = new Set<string>();
+  const scoreOf = new Map<string, { score: number; reason: string }>();
+  const enqueue = (url: string, score: number, reason: string) => {
+    if (enqueued.has(url)) {
+      const prev = scoreOf.get(url);
+      if (prev && score < prev.score) {
+        // Re-push with the better (lower) score; the stale entry is skipped at pop time.
+        pq.push(url, score);
+        scoreOf.set(url, { score, reason });
+      }
+      return;
+    }
+    enqueued.add(url);
+    pq.push(url, score);
+    scoreOf.set(url, { score, reason });
+  };
+  if (seedNormalized) enqueue(seedNormalized, -1, "homepage-seed");
+
+  // Phase 1 seeds: previously discovered tracked inventory (our own metadata).
+  // Only discovered links are used — product URLs are never guessed.
+  try {
+    const inventoryPath = path.join(process.cwd(), "reference", "wecare", "inventory", "internal-links.json");
+    if (fs.existsSync(inventoryPath)) {
+      const parsed = JSON.parse(fs.readFileSync(inventoryPath, "utf8")) as {
+        edges: Array<{ from: string; to: string }>;
+      };
+      let added = 0;
+      const seen = new Set<string>();
+      for (const edge of parsed.edges) {
+        for (const raw of [edge.to, edge.from]) {
+          const norm = normalizeUrl(raw, config.baseOrigin);
+          if (!norm || seen.has(norm)) continue;
+          seen.add(norm);
+          if (isSkippablePath(norm).skip) continue;
+          const s = scoreUrl(norm);
+          enqueue(norm, s.score, `inventory-seed:${s.reason}`);
+          added += 1;
+          if (added >= 5000) break;
+        }
+        if (added >= 5000) break;
+      }
+      log(`seeded ${added} previously discovered inventory URLs (prioritized, never guessed)`);
+    }
+  } catch (err) {
+    log(`inventory seeding skipped: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   const visited = new Set<string>();
   const records: PageRecord[] = [];
-  const discoveredSet = new Set<string>(queue);
+  const discoveredSet = new Set<string>(enqueued);
 
   let blockedCount = 0;
 
-  while (queue.length > 0 && visited.size < config.maxPages) {
-    const originalUrl = queue.shift() as string;
+  while (pq.size > 0 && visited.size < config.maxPages) {
+    const originalUrl = pq.pop() as string;
     const normalized = normalizeUrl(originalUrl, config.baseOrigin);
     if (!normalized || visited.has(normalized)) continue;
+    // Skip stale queue entries superseded by a better score re-push.
+    const queuedScore = scoreOf.get(normalized);
 
     const skip = isSkippablePath(normalized);
     if (skip.skip) {
@@ -200,7 +293,8 @@ async function main(): Promise<void> {
     if (visited.size > 1) await delayWithJitter(config.delayMs);
 
     const timestamp = new Date().toISOString();
-    log(`[${visited.size}/${config.maxPages}] GET ${normalized}`);
+    const prio = queuedScore ?? scoreUrl(normalized);
+    log(`[${visited.size}/${config.maxPages}] GET ${normalized} (prio=${prio.score}:${prio.reason})`);
 
     const record: PageRecord = {
       originalUrl,
@@ -226,6 +320,9 @@ async function main(): Promise<void> {
       htmlPath: null,
       screenshotDesktopPath: null,
       screenshotMobilePath: null,
+      priorityScore: prio.score,
+      priorityReason: prio.reason,
+      domSignals: null,
     };
 
     try {
@@ -281,12 +378,13 @@ async function main(): Promise<void> {
         continue;
       }
 
-      // Discover internal links (read-only: hrefs only, never clicked).
+      // Discover internal links (read-only: hrefs + anchor text only, never clicked).
+      // Anchor text promotes product-card-like links in the priority queue.
       const internal: string[] = [];
-      for (const href of data.hrefs) {
+      for (const link of data.links) {
         let resolved: string;
         try {
-          resolved = new URL(href, record.finalUrl).toString();
+          resolved = new URL(link.href, record.finalUrl).toString();
         } catch {
           continue;
         }
@@ -295,19 +393,21 @@ async function main(): Promise<void> {
         if (isSkippablePath(norm).skip) continue;
         internal.push(norm);
         discoveredSet.add(norm);
-        if (!enqueued.has(norm) && !visited.has(norm)) {
-          enqueued.add(norm);
-          queue.push(norm);
+        if (!visited.has(norm)) {
+          const s = scoreUrl(norm, link.text);
+          enqueue(norm, s.score, s.reason);
         }
       }
       const uniqueInternal = [...new Set(internal)].sort();
       record.internalLinksCount = uniqueInternal.length;
       record.internalLinksSample = uniqueInternal.slice(0, 100);
+      record.domSignals = data.signals;
 
       const classification = classifyPage({
         normalizedUrl: record.finalUrl,
         title: record.title,
         h1: record.h1,
+        dom: data.signals,
       });
       record.pageType = classification.pageType;
       record.pageTypeReason = classification.reason;
@@ -322,14 +422,38 @@ async function main(): Promise<void> {
   }
 
   // --- representative screenshots (desktop + mobile, full page) ---
-  const pickFirst = (types: string[]): PageRecord | undefined =>
-    records.find((r) => r.success && types.includes(r.pageType));
+  // Phase 1 set: homepage x1, category/subcategory x2, product x3,
+  // brand x1, blog/article x1, informational x1.
+  const usedForShots = new Set<string>();
+  const pickN = (types: string[], n: number): PageRecord[] => {
+    const out: PageRecord[] = [];
+    for (const r of records) {
+      if (out.length >= n) break;
+      if (r.success && types.includes(r.pageType) && !usedForShots.has(r.normalizedUrl)) {
+        usedForShots.add(r.normalizedUrl);
+        out.push(r);
+      }
+    }
+    return out;
+  };
+  const homepageRec = pickN(["homepage"], 1);
+  if (homepageRec.length === 0) {
+    const fallback = records.find((r) => r.success);
+    if (fallback) {
+      usedForShots.add(fallback.normalizedUrl);
+      homepageRec.push(fallback);
+    }
+  }
   const representatives: Array<{ label: string; record: PageRecord | undefined }> = [
-    { label: "homepage", record: pickFirst(["homepage"]) ?? records.find((r) => r.success) },
-    { label: "category", record: pickFirst(["category", "subcategory"]) },
-    { label: "product", record: pickFirst(["product"]) },
-    { label: "brand", record: pickFirst(["brand"]) },
-    { label: "informational", record: pickFirst(["informational", "article", "blog"]) },
+    ...homepageRec.map((record, i) => ({ label: i === 0 ? "homepage" : `homepage-${i + 1}`, record })),
+    ...pickN(["category", "subcategory"], 2).map((record, i) => ({
+      label: `category-${i + 1}`,
+      record,
+    })),
+    ...pickN(["product"], 3).map((record, i) => ({ label: `product-${i + 1}`, record })),
+    ...pickN(["brand"], 1).map((record) => ({ label: "brand", record })),
+    ...pickN(["blog", "article"], 1).map((record) => ({ label: "blog", record })),
+    ...pickN(["informational"], 1).map((record) => ({ label: "informational", record })),
   ];
   log("capturing representative screenshots (desktop 1440x1000, mobile 390x844)...");
   for (const { label, record } of representatives) {
