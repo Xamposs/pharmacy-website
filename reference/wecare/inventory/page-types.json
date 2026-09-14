@@ -1,0 +1,51 @@
+{
+  "generatedAt": "2026-09-14T10:08:18.273Z",
+  "note": "heuristic classification; see pageTypeReason per page in pages.json",
+  "counts": {
+    "homepage": 1,
+    "category": 13,
+    "subcategory": 1,
+    "blog": 1,
+    "informational": 1,
+    "brand": 8
+  },
+  "urlsByType": {
+    "homepage": [
+      "https://www.wecare.gr/"
+    ],
+    "category": [
+      "https://www.wecare.gr/%CE%B1%CE%BD%CF%84%CE%B7%CE%BB%CE%B9%CE%B1%CE%BA%CE%B1.htm",
+      "https://www.wecare.gr/%CE%B2%CE%B9%CF%84%CE%B1%CE%BC%CE%B9%CE%BD%CE%B5%CF%83-%CF%83%CF%85%CE%BC%CF%80%CE%BB%CE%B7%CF%81%CF%89%CE%BC%CE%B1%CF%84%CE%B1.htm",
+      "https://www.wecare.gr/%CE%B3%CE%B9%CE%B1-%CF%84%CE%BF%CE%BD-%CE%B1%CE%BD%CE%B4%CF%81%CE%B1.htm",
+      "https://www.wecare.gr/%CE%B4%CE%B5%CF%81%CE%BC%CE%BF%CE%BA%CE%B1%CE%BB%CE%BB%CF%85%CE%BD%CF%84%CE%B9%CE%BA%CE%B1.htm",
+      "https://www.wecare.gr/%CE%B5%CF%80%CE%BF%CF%87%CE%B9%CE%B1%CE%BA%CE%B1-%CF%80%CF%81%CE%BF%CF%83%CF%86%CE%BF%CF%81%CE%B5%CF%83.htm",
+      "https://www.wecare.gr/%CE%BC%CE%B1%CE%BA%CE%B9%CE%B3%CE%B9%CE%B1%CE%B6.htm",
+      "https://www.wecare.gr/%CE%BC%CE%B1%CE%BB%CE%BB%CE%B9%CE%B1.htm",
+      "https://www.wecare.gr/%CE%BC%CE%B7%CF%84%CE%B5%CF%81%CE%B1-%CF%80%CE%B1%CE%B9%CE%B4%CE%B9.htm",
+      "https://www.wecare.gr/%CF%80%CF%81%CE%BF%CF%83%CF%89%CF%80%CE%BF.htm",
+      "https://www.wecare.gr/%CF%83%CF%89%CE%BC%CE%B1.htm",
+      "https://www.wecare.gr/%CF%84%CE%B5%CE%BB%CE%B5%CF%85%CF%84%CE%B1%CE%B9%CE%B5%CF%83-%CE%B1%CF%86%CE%B9%CE%BE%CE%B5%CE%B9%CF%83.htm",
+      "https://www.wecare.gr/%CF%86%CE%B1%CF%81%CE%BC%CE%B1%CE%BA%CE%B5%CE%B9%CE%BF.htm",
+      "https://www.wecare.gr/hot.htm"
+    ],
+    "subcategory": [
+      "https://www.wecare.gr/%CF%83%CF%89%CE%BC%CE%B1/%CE%B1%CE%B4%CF%85%CE%BD%CE%B1%CF%84%CE%B9%CF%83%CE%BC%CE%B1.htm"
+    ],
+    "blog": [
+      "https://www.wecare.gr/blog"
+    ],
+    "informational": [
+      "https://www.wecare.gr/category/%CE%B7-%CF%85%CF%80%CE%B7%CF%81%CE%B5%CF%83%CE%B9%CE%B1-%CE%BC%CE%B1%CF%83/%CF%84%CF%81%CE%BF%CF%80%CE%BF%CE%B9-%CE%B1%CF%80%CE%BF%CF%83%CF%84%CE%BF%CE%BB%CE%B7%CF%83.htm"
+    ],
+    "brand": [
+      "https://www.wecare.gr/vendors.htm",
+      "https://www.wecare.gr/vendors/apivita.htm",
+      "https://www.wecare.gr/vendors/avene/details.htm",
+      "https://www.wecare.gr/vendors/cerave.htm",
+      "https://www.wecare.gr/vendors/frezyderm.htm",
+      "https://www.wecare.gr/vendors/la-roche-posay.htm",
+      "https://www.wecare.gr/vendors/lamberts.htm",
+      "https://www.wecare.gr/vendors/vichy.htm"
+    ]
+  }
+}
